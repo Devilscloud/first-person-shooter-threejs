@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+
+		<!-- Always force latest IE rendering engine (even in intranet) & Chrome Frame
+		Remove this if you use the .htaccess -->
+		<meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" />
+
+		<title>Game</title>
+		<meta name="description" content="" />
+		<meta name="author" content="acer" />
+
+		<meta name="viewport" content="width=device-width initial-scale=1.0" />
+
+		<!-- Replace favicon.ico & apple-touch-icon.png in the root of your domain and delete these references -->
+		<link rel="shortcut icon" href="/favicon.ico" />
+		<link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+		<style>
+			html, body {
+				width: 100%;
+				height: 100%;
+			}
+
+			body {
+				background-color: #ffffff;
+				margin: 0;
+				overflow: hidden;
+				font-family: arial;
+			}
+
+			#blocker {
+
+				position: absolute;
+
+				width: 100%;
+				height: 100%;
+
+				background-color: rgba(0,0,0,0.5);
+
+			}
+
+			#instructions {
+
+				width: 100%;
+				height: 100%;
+
+				display: -webkit-box;
+				display: -moz-box;
+				display: box;
+
+				-webkit-box-orient: horizontal;
+				-moz-box-orient: horizontal;
+				box-orient: horizontal;
+
+				-webkit-box-pack: center;
+				-moz-box-pack: center;
+				box-pack: center;
+
+				-webkit-box-align: center;
+				-moz-box-align: center;
+				box-align: center;
+
+				color: #ffffff;
+				text-align: center;
+
+				cursor: pointer;
+
+			}
+			#pointer{
+				width:30px;
+				height:30px;
+				opacity: 0.5;
+				position:absolute;
+				z-index: 10;
+				background-color:red;
+				border-radius: 15px;
+				display:none;
+			}
+		</style>
+		
+		<script src="./build/three.min.js" type="text/javascript" charset="utf-8"></script>
+		<script src="./examples/js/controls/OrbitControls.js"></script>
+		<script src="./examples/js/loaders/MTLLoader.js"></script>
+		<script src="./examples/js/loaders/OBJLoader.js"></script>
+		<script src="./examples/js/loaders/OBJMTLLoader.js"></script>
+		<script src="./examples/js/controls/PointerLockControls.js"></script>
+		
+	</head>
+
+	<body>
+		<div id="blocker">
+
+			<div id="instructions">
+				<span style="font-size:40px">Click to play</span>
+				<br />
+				(W, A, S, D = Move, SPACE = Jump, MOUSE = Look around)
+			</div>
+			
+		</div>
+		<div id="pointer"></div>	
+		<script type="text/javascript" charset="utf-8">
+	var Game = {
+		 scene: null,
+		  camera: null,
+		  renderer: null,
+		  container: null,
+		  controls: null,
+		  clock: null,
+		  stats: null,
+		  texture:null,
+		  SCREEN_WIDTH:  window.innerWidth,
+		  SCREEN_HEIGHT:window.innerHeight,
+		  raycaster: null,
+		  objGun: null,
+		  gunLight:null,
+		  clock: null,
+		  initX : 0,
+			initY : 10,
+			initZ : 0,
+			initRotY : -(Math.PI),
+		
+		  init: function() { // Initialization
+		
+		    // create main scene
+		    oGame = this;
+		    this.clock = new THREE.Clock();
+		    this.scene = new THREE.Scene();
+		   // this.scene.fog = new THREE.FogExp2(0xcce0ff, 0.0003);
+		
+		    // prepare camera
+		    var VIEW_ANGLE = 50, ASPECT = this.SCREEN_WIDTH / this.SCREEN_HEIGHT, NEAR = 1, FAR = 20000;
+		    
+		    this.camera = new THREE.PerspectiveCamera( VIEW_ANGLE, ASPECT, NEAR, FAR);
+		    this.scene.add(this.camera);
+		    this.camera.position.set(0, 100, 300);
+		  //  this.camera.lookAt(new THREE.Vector3(0,0,0));
+			this.raycaster = new THREE.Raycaster( new THREE.Vector3(), new THREE.Vector3( 0, - 1, 0 ), 0, 10 );
+			
+			//prepare point locker
+			var blocker 		= document.getElementById('blocker');
+			var instructions 	= document.getElementById( 'instructions' );
+			this.controls 		= new THREE.PointerLockControls( this.camera );
+			this.scene.add( this.controls.getObject() );
+			var havePointerLock = 'pointerLockElement' in document || 'mozPointerLockElement' in document || 'webkitPointerLockElement' in document;
+			
+			if ( havePointerLock ) {
+
+				var element = document.body;
+				var pointerlockchange = function ( event ) {
+				if ( document.pointerLockElement === element || document.mozPointerLockElement === element || document.webkitPointerLockElement === element ) {
+					Game.controls.enabled = true;
+					//blocker.style.display = 'none';
+				} else {
+					oGame.controls.enabled = false;
+					blocker.style.display = '-webkit-box';
+					blocker.style.display = '-moz-box';
+					blocker.style.display = 'box';
+					instructions.style.display = '';
+				}
+
+			}
+
+			var pointerlockerror = function ( event ) {
+
+				instructions.style.display = '';
+
+			}
+			// Hook pointer lock state change events
+			document.addEventListener( 'pointerlockchange', pointerlockchange, false );
+			document.addEventListener( 'mozpointerlockchange', pointerlockchange, false );
+			document.addEventListener( 'webkitpointerlockchange', pointerlockchange, false );
+	
+			document.addEventListener( 'pointerlockerror', pointerlockerror, false );
+			document.addEventListener( 'mozpointerlockerror', pointerlockerror, false );
+			document.addEventListener( 'webkitpointerlockerror', pointerlockerror, false );
+			
+			instructions.addEventListener( 'click', function ( event ) {
+					instructions.style.display = 'none';
+
+					// Ask the browser to lock the pointer
+					element.requestPointerLock = element.requestPointerLock || element.mozRequestPointerLock || element.webkitRequestPointerLock;
+
+					if ( /Firefox/i.test( navigator.userAgent ) ) {
+
+						var fullscreenchange = function ( event ) {
+
+							if ( document.fullscreenElement === element || document.mozFullscreenElement === element || document.mozFullScreenElement === element ) {
+
+								document.removeEventListener( 'fullscreenchange', fullscreenchange );
+								document.removeEventListener( 'mozfullscreenchange', fullscreenchange );
+								
+								element.requestPointerLock();
+							}
+
+						}
+
+						document.addEventListener( 'fullscreenchange', fullscreenchange, false );
+						document.addEventListener( 'mozfullscreenchange', fullscreenchange, false );
+
+					element.requestFullscreen = element.requestFullscreen || element.mozRequestFullscreen || element.mozRequestFullScreen || element.webkitRequestFullscreen;
+
+						element.requestFullscreen();
+
+					} else {
+
+						element.requestPointerLock();
+
+					}
+					
+				document.getElementById('pointer').style.display = 'block';
+
+				}, false );
+
+			} else {
+
+				instructions.innerHTML = 'Your browser doesn\'t seem to support Pointer Lock API';
+
+			}
+
+
+			
+		    // prepare renderer
+		    this.renderer = new THREE.WebGLRenderer({ antialias:true });
+		    this.renderer.setSize(this.SCREEN_WIDTH, this.SCREEN_HEIGHT);
+		    //this.renderer.setClearColor(this.scene.fog.color);
+		    this.renderer.shadowMapEnabled = true;
+		    this.renderer.shadowMapSoft = true;
+		
+		    // prepare container
+		    this.container = document.createElement('div');
+		    document.body.appendChild(this.container);
+		    this.container.appendChild(this.renderer.domElement);
+
+// 		
+		    // add spot light
+		    var spLight = new THREE.SpotLight(0xffffff, 1.75, 2000, Math.PI / 3);
+		    spLight.castShadow = true;
+		    spLight.position.set(-100, 300, -50);
+		    // this.scene.add(spLight);
+		    
+		    var light = new THREE.AmbientLight( 0x404040 );// soft white light
+		    this.scene.add(light);
+		    
+		    // add gun light
+	        this.gunLight = new THREE.SpotLight(0xffffff );
+		    this.gunLight.position.y = 500;
+		    
+		    
+		    // add simple ground
+		    var ground = new THREE.Mesh( new THREE.BoxGeometry(100, 100, 10), new THREE.MeshLambertMaterial({color:0x999999}) );
+		    ground.receiveShadow = true;
+		    ground.position.set(0, 0, 100);
+		    ground.rotation.x = -Math.PI / 2;
+		    this.scene.add(ground);
+		    
+			this.scene.add( makeSkybox( [
+				'examples/textures/cube/skybox/px.jpg', // right
+				'examples/textures/cube/skybox/nx.jpg', // left
+				'examples/textures/cube/skybox/py.jpg', // top
+				'examples/textures/cube/skybox/ny.jpg', // bottom
+				'examples/textures/cube/skybox/pz.jpg', // back
+				'examples/textures/cube/skybox/nz.jpg'  // front
+			], 8000 ));
+			
+			this.scene.add( makePlatform(
+				'examples/models/platform/platform.json',
+				'examples/models/platform/platform.jpg',
+				Game.renderer.getMaxAnisotropy()
+			));
+
+		    // load a model
+		    this.loadTexture();
+		    this.loadModel();
+		    
+		    // this.loadMTLOBJ()
+		  },
+		  loadTexture : function(){
+		  	var oGame = this;
+		  	var manager = new THREE.LoadingManager();
+			  	manager.onProgress = function ( item, loaded, total ) {
+				//console.log( item, loaded, total );
+				};
+
+	  		var loader = new THREE.ImageLoader( manager );
+
+	  		this.texture = new THREE.Texture();
+			loader.load( './models/MP5K/Tex_0004_1.png', function ( image ) {
+				oGame.texture.image = image;
+				oGame.texture.needsUpdate = true;
+
+			} );
+		  },
+		  loadMTLOBJ: function(){
+		  	var loader = new THREE.OBJMTLLoader();
+			loader.load( '../models/MP5K/MP5K.obj', '../models/MP5K/MP5K.mtl', function ( object ) {
+
+				object.position.y = - 80;
+				Game.scene.add( object );
+
+			}, this.onProgress, this.onError );
+
+		  },
+		  loadModel: function() {
+			// prepare loader and load the model
+				var oGame = this;
+				var oLoader = new THREE.OBJLoader();
+				oLoader.load('./models/MP5K/MP5K.obj', function(object, materials) {
+				
+				
+				  // var material = new THREE.MeshFaceMaterial(materials);
+				  var material2 = new THREE.MeshLambertMaterial({ color: 0xa65e00 });
+					oGame.objGun = object;
+				  oGame.objGun.traverse( function(child) {
+				    if (child instanceof THREE.Mesh) {
+				
+				      // apply custom material
+				      child.material.map = oGame.texture;
+				
+				      // enable casting shadows
+				      child.castShadow = true;
+				      child.receiveShadow = true;
+				  // oGame.objGun.rotation._z = 90 ;
+				    }
+				  });
+				  oGame.camera.add(oGame.objGun);
+				  oGame.objGun.position.set(5, -30, -120);
+				  oGame.objGun.rotation.set(Math.PI/18, -Math.PI * 0.98 ,0, 'XYZ');
+				  //oGame.objGun.scale.set(1, 1, 1);
+			    oGame.scene.add( oGame.gunLight);
+    			Game.gunLight.target = Game.objGun;	
+				oGame.camera.updateProjectionMatrix();
+			    animate();
+				  
+				});
+		  }
+		};
+
+				// Animate the scene
+				function animate() {
+				  requestAnimationFrame(animate);
+				  render();
+				 update();
+				}
+				
+				// Update controls and stats
+				function update() {
+				  // Game.controls.update(Game.clock.getDelta());
+				  Game.controls.isOnObject( false );
+
+				Game.raycaster.ray.origin.copy( Game.controls.getObject().position );
+				Game.raycaster.ray.origin.y -= 10;
+
+				var intersections = Game.raycaster.intersectObjects( Game.scene.children );
+
+				if ( intersections.length > 0 ) {
+
+					Game.controls.isOnObject( true );
+
+				}
+
+				Game.controls.update();
+
+				}
+				
+				// Render the scene
+				function render() {
+					//var pointer = document.getElementById("pointer");
+					//pointer.style.left = mouse
+					
+				  if (Game.renderer) {
+				    Game.renderer.render(Game.scene, Game.camera);
+				  }
+				}
+				
+				// Initialize lesson on page load
+				function initGame() {
+				  Game.init();
+				
+				}
+			function onWindowResize() {
+
+				Game.SCREEN_Height = window.innerWidth / 2;
+				Game.SCREEN_HEIGHT = window.innerHeight / 2;
+
+				Game.camera.aspect = window.innerWidth / window.innerHeight;
+				Game.camera.updateProjectionMatrix();
+
+				Game.renderer.setSize( window.innerWidth, window.innerHeight );
+
+			}
+			
+			function updateGun(){
+			 	var pointlockerObj 		= Game.controls.getObject();
+			 	var pitchObj 		= Game.controls.pitchObject();
+			 	if(pointlockerObj ){
+			 	var rotationX = pitchObj.rotation.x;
+			 	var rotationY = pointlockerObj.rotation.y;
+			 	var rotationZ = pitchObj.rotation.z;
+			 	var radius = Game.objGun.children[0].position.z;
+			 	var locX = pointlockerObj.position.x;
+			 	var locY = pointlockerObj.position.y;
+			 	var locZ = pointlockerObj.position.z;
+			 	// console.log('locX = '+ locX+' | locY : '+ locX+' | locZ = '+ locZ);
+			 	var x2 =  (Math.cos(rotationY) * Game.initZ );
+			 	var y2 = (Math.sin(rotationX) * Game.initZ );
+			 	var z2 = (Math.acos(rotationZ) * Game.initZ );
+			 	// console.log('rotationY = '+rotationY+' | x2 = '+x2+ ' | rotationX  = '+rotationX+'| y2 = '+ y2 + ' | rotationZ = '+rotationZ );
+			 	console.log('rotationY = '+rotationY+' | x2 = '+x2+ ' | rotationX  = '+rotationX+'| y2 = '+ y2 + ' | rotationZ = '+rotationZ );
+			 	console.log('locX  = '+locX+' | locY = '+locY+ ' | locZ  = '+locZ);
+				
+				Game.objGun.children[0].position.x =  	locX + x2;//pointlockerObj.position.x - x2;
+				Game.objGun.children[0].position.y =   	locY + y2;//pointlockerObj.position.y + y2;
+				Game.objGun.children[0].position.z =   	locZ + z2;//Game.initZ + pointlockerObj.position.z;
+				
+				// r2 = Math.sin(pointlockerObj.rotation.y);
+				Game.objGun.children[0].rotation.y =  (rotationY  - (Math.PI )) ;
+				Game.objGun.children[0].rotation.x =  rotationX;
+				Game.objGun.children[0].rotation.z =  rotationZ;
+				
+			   // console.log('Game.objGun.position : '+ JSON.stringify(Game.objGun.position));
+			   var angle1 = (pointlockerObj.rotation.y * (180 / Math.PI)) ;
+			   var angle2 = (Game.objGun.children[0].rotation.x * (180/ Math.PI));
+			   
+			    //console.log('Game.pointlockerObj.rotation.y : '+ angle1+ ' gun rot  y = '+ angle2);
+			    // console.log('Game.pointlockerObj.x : '+ pointlockerObj.position.x+' \n\t pointlockerObj.position.y = '+ pointlockerObj.position.x+'\n\t pointlockerObj.position.z = '+ pointlockerObj.position.x);
+			    // console.log(' pointlockerObj x = '+ pointlockerObj.position.x);
+			    // console.log(' difference x = '+ (x2 - pointlockerObj.position.x));
+			 	}
+			}
+		
+		// init 3D stuff
+
+			function makeSkybox( urls, size ) {
+				// console.log(urls + ' | '+ size);
+				var skyboxCubemap = THREE.ImageUtils.loadTextureCube( urls );
+
+				skyboxCubemap.format = THREE.RGBFormat;
+
+				var skyboxShader = THREE.ShaderLib['cube'];
+				skyboxShader.uniforms['tCube'].value = skyboxCubemap;
+
+				return new THREE.Mesh(
+					new THREE.BoxGeometry( size, size, size ),
+					new THREE.ShaderMaterial({
+						fragmentShader : skyboxShader.fragmentShader, vertexShader : skyboxShader.vertexShader,
+						uniforms : skyboxShader.uniforms, depthWrite : false, side : THREE.BackSide
+					})
+				);
+			};
+			
+			function makePlatform( jsonUrl, textureUrl, textureQuality ) {
+				var placeholder = new THREE.Object3D();
+
+				var texture = THREE.ImageUtils.loadTexture( textureUrl );
+				texture.anisotropy = textureQuality;
+
+				var loader = new THREE.JSONLoader();
+				loader.load( jsonUrl, function( geometry ) {
+
+					geometry.computeFaceNormals();
+
+					var platform = new THREE.Mesh( geometry, new THREE.MeshBasicMaterial({ map : texture }) );
+
+					platform.name = "platform";
+
+					placeholder.add( platform );
+				});
+
+				return placeholder;
+			};
+			
+			function onMouseMove(event){
+				document.getElementById('pointer').style.left = (event.clientX - 15)+"px";
+				document.getElementById('pointer').style.top = ( event.clientY - 15)+"px";
+				console.log(event.clientX);
+			}
+			window.addEventListener("mousemove", onMouseMove);
+			window.addEventListener('resize', onWindowResize);
+				if (window.addEventListener)
+				  window.addEventListener('load', initGame, false);
+				else if (window.attachEvent)
+				  window.attachEvent('onload', initGame);
+				else window.onload = initGame;
+		</script>
+	</body>
+</html>
