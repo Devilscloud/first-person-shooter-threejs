@@ -13,7 +13,7 @@ var FlappyBird = function(_material, _phase, _distance, _speed, _theta, _phi){
 	this.theta = 	_theta,
 	this.phi 	= _phi,
 	this.clock = new THREE.Clock();
-	//this.rotation.set(-( this.phi - (Math.PI /4)), this.theta , 0 , 'YXZ');
+	// this.rotation.set(-( this.phi - (Math.PI /4)), this.theta , 0 , 'YXZ');
 	this.animate = this.animate.bind(this);
 	
 }
