@@ -137,6 +137,7 @@
 				blast : null,
 				viewline:null,
 				particles:null,
+				audioListener:null,
 
 				init : function() {// Initialization
 
@@ -150,6 +151,8 @@
 					var VIEW_ANGLE = 50, ASPECT = this.SCREEN_WIDTH / this.SCREEN_HEIGHT, NEAR = 1, FAR = 20000;
 
 					this.camera = new THREE.PerspectiveCamera(VIEW_ANGLE, ASPECT, NEAR, FAR);
+					this.audioListener = new THREE.AudioListener();
+					this.camera.add( this.audioListener );
 					this.scene.add(this.camera);
 					// this.camera.position.set(0, 100, 300);
 					//  this.camera.lookAt(new THREE.Vector3(0,0,0));
@@ -266,9 +269,7 @@
 			
 								// load a model
 								Game.loadTexture();
-								Game.loadModel();
-								Game.createEnemy();
-								animate();
+								
 							}
 
 						}, false);
@@ -284,7 +285,7 @@
 					var oGame = this;
 					var manager = new THREE.LoadingManager();
 					manager.onProgress = function(item, loaded, total) {
-						//console.log( item, loaded, total );
+						////console.log( item, loaded, total );
 					};
 
 					var loader = new THREE.ImageLoader(manager);
@@ -293,6 +294,7 @@
 					loader.load('./models/MP5K/Tex_0004_1.png', function(image) {
 						oGame.texture.image = image;
 						oGame.texture.needsUpdate = true;
+						Game.loadModel();
 
 					});
 				},
@@ -310,7 +312,7 @@
 					var loader = new THREE.ImageLoader(manager);
 					var manager = new THREE.LoadingManager();
 					manager.onProgress = function(item, loaded, total) {
-						//console.log( item, loaded, total );
+						////console.log( item, loaded, total );
 					};
 
 					var gunsitetexture = new THREE.Texture();
@@ -374,19 +376,23 @@
 						object.position.set(2.4, -22.4, 9);
 						oGame.camera.add(oGame.objGun);
 						//Game.objGun.rotation.x = Math.PI / 2;
-						Game.objGun.position.set(15, -20, -148);
+						Game.objGun.position.set(10, -10, -148);
 						//object.position.set(20, -35, -130);
-						object.rotation.set(Math.PI / 18, Math.PI +(Math.PI /16), 0, 'XYZ');
+						object.rotation.set(Math.PI / 16, Math.PI +(Math.PI /18), 0, 'XYZ');
 						// object.rotation.set(0, -Math.PI , 0, 'XYZ');
 						//oGame.objGun.scale.set(1, 1, 1);
 						oGame.scene.add(oGame.gunLight);
 						Game.gunLight.target = Game.objGun;
 						oGame.camera.updateProjectionMatrix();
+						
+						Game.createEnemy();
+						animate();
+
 
 					});
 				},
 				createEnemy : function() {
-					console.log('create enemy');
+					//console.log('create enemy');
 					var material = new THREE.MeshBasicMaterial({
 						color : 0xff0000,
 						side : THREE.DoubleSide
@@ -428,6 +434,7 @@
 			function checkBirdHit(event) {
 				// Game.controls.update(Game.clock.getDelta());
 				event.preventDefault();
+				if(Game.objGun == null || Game.objGun == undefined )return;
 				var controlObj = Game.controls.getObject();
 				var pitchObj = Game.controls.pitchObject();
 				var delta = Game.clock.getDelta();
@@ -446,29 +453,34 @@
 					var intersections = raycaster.intersectObject(Game.aEnemy[0]);
 				
 					if (intersections && intersections.length > 0) {
-					console.log('hitObject intersections.length ' + intersections.length);
+					////console.log('hitObject intersections.length ' + intersections.length);
 						for (var i = 0; i < intersections.length; i++) {
 							var hitObject = intersections[i].object;
 							// hitObject.scale.multiplyScalar(2);
 							if (hitObject.name == 'enemy') {
 								Game.score++;
 								document.getElementById('score').innerHTML = Game.score;
-								buildRay(hitObject);
+								createBlast(hitObject);
 								break;
 							}
 						}
 	
 					}
+				}else{
+						
 				}
+				Game.objGun.bRecoile = true;
+				buildRay();
+				createGunSmoke();
 			};
 
-			function buildRay(hitObj){
+			function buildRay(_hitObj){
 				// object.rotation.set(Math.PI / 18, Math.PI +(Math.PI /16), 0, 'XYZ');
 				var controlObj 	= Game.controls.getObject();
 				var pitchObj 	= Game.controls.pitchObject();
-				var delta 		= Game.clock.getDelta();
 				var theta 		= controlObj.rotation.y;
 				var phi 		= pitchObj.rotation.x;
+				var hitObj 		= _hitObj;
 
 				if(Game.targetRay){
 					Game.scene.remove(Game.targetRay);
@@ -477,23 +489,28 @@
 				controlObj.updateMatrixWorld();	
 				var rayStart = new THREE.Vector3();
 				rayStart.setFromMatrixPosition(Game.objGun.matrixWorld);
-				var rayEnd 		= hitObj.position.clone();//controlObj.position.clone().add(getLocation(theta, phi, 590));
+
+				//rayStart.copy(controlObj.position.clone().sub(getLocation(theta, phi, 100)));
+				var rayEnd = rayStart.clone().sub(getLocation(theta, - (phi - (Math.PI /2)), 1000));
+				//console.log('Y  = '+(theta * (180/Math.PI))+ ' | X = '+ ( -(phi - (Math.PI /2)) * (-180/Math.PI)));
+				if(hitObj && hitObj != undefined){
+					rayEnd 		= hitObj.position.clone();//controlObj.position.clone().add(getLocation(theta, phi, 590));
+				}
 				// rayEnd.x += -(Math.PI/2);
-				Game.targetRay = createRay(rayStart, rayEnd);
+				Game.targetRay 	= createRay(rayStart, rayEnd);
+					
 				var timer =  setTimeout(function(){
 					Game.scene.remove(Game.targetRay);
 					Game.targetRay = null;
-					createBlast(hitObj);
 					clearTimeout(timer);
 				}, 20);
 				Game.scene.add(Game.targetRay);								
-
 			}
 		
 			function createBlast(enemy) {
 				var gemoetry =  new Bird();
-				Game.blast = new Blast(gemoetry, 0xff0000, 70, function() {
-					console.log('blast over');
+				Game.blast = new Blast(gemoetry, 0xff0000, 70, 30 , 5, 0.03, function() {
+					//console.log('blast over');
 					Game.scene.remove(Game.particles);
 					Game.particles = null;
 					Game.blast = null;
@@ -503,9 +520,42 @@
 				Game.particles 	= Game.blast.createParticle()
 				Game.scene.add(Game.particles);
 				Game.particles.position.copy(enemy.position.clone());
+				var sound1 = new THREE.Audio( Game.audioListener );
+				sound1.load( 'sounds/bomb-02.ogg' );
+				sound1.setRefDistance( enemy.getDistance());
+				Game.particles.add( sound1 );
 				removeEnemy();
 //				particles.rotation.copy((enemy.rotation.clone()))
 			};
+			
+			function createGunSmoke(){
+				var gemoetry = new THREE.SphereGeometry(2,5,5);
+				if(Game.objGun.smoke){
+					Game.objGun.remove(Game.objGun.smoke);
+					Game.objGun.smoke = null;
+					Game.objGun.blast = null;
+					Game.objGun.remove(Game.objGun.sound);
+					Game.objGun.sound = null;
+				}
+				Game.objGun.blast  = new Blast(gemoetry, 0xff00ff, 5, 10, 5,0.05,function() {
+					Game.objGun.remove(Game.objGun.smoke);
+					Game.objGun.smoke = null;
+					Game.objGun.blast = null;
+					Game.objGun.remove(Game.objGun.sound);
+					Game.objGun.sound = null;
+				}, this);
+			
+			
+				Game.objGun.smoke = Game.objGun.blast.createParticle();
+				Game.objGun.add(Game.objGun.smoke);
+
+				Game.objGun.sound = new THREE.Audio( Game.audioListener );
+				Game.objGun.sound.load( 'sounds/gun_fire.mp3' );
+				// Game.objGun.sound.load( 'sounds/sounds/bomb-02.ogg' );
+				Game.objGun.sound.setRefDistance( 10);
+				Game.objGun.add( Game.objGun.sound);
+				
+			}
 
 			// Render the scene
 			function render() {
@@ -517,7 +567,7 @@
 				var delta = Game.clock.getDelta();
 				var theta = controlObj.rotation.y;
 				var phi = (Math.PI / 2) - pitchObj.rotation.x;
-				//console.log('controls rotation = '+ JSON.stringify(Game.controls.getRotation()) );
+				////console.log('controls rotation = '+ JSON.stringify(Game.controls.getRotation()) );
 				if (Game.aEnemy.length > 0) {
 					var diff = Game.aEnemy[0].animate(controlObj, 2, delta);
 					var diff = Game.aEnemy[0].attack(controlObj, theta, phi, 2, delta);
@@ -528,19 +578,24 @@
 					}
 
 				}
-				
-
+				if(Game.objGun.bRecoile){
+					if(!recoile(Game.objGun, delta)){
+						Game.objGun.bRecoile  = false;
+					}
+				}
+		
+				if(Game.objGun.blast){
+					Game.objGun.blast.animateParticles(delta);
+				}
 				Game.gunSite.position.copy(controlObj.position.clone().sub(getLocation(theta, phi, 90)));
-				//Game.gunSite.position.x += 3;//(controlObj.position.clone().sub(getLocation(theta, phi, 50)));
-				//Game.gunSite.position.y -= 5;//(controlObj.position.clone().sub(getLocation(theta, phi, 50)));
-				// Game.gunSite.position.z -= 5;//(controlObj.position.clone().sub(getLocation(theta, phi, 50)));
+				
 				Game.gunSite.rotation.set(-(phi - (Math.PI / 2)), theta, 0, 'YXZ');
 				
 
 				if (Game.blast) {
 					Game.blast.animateParticles(delta);
 				}
-				//	console.log(' theta= '+(theta * (180/Math.PI))+ ' | phi = '+ (phi * (180/Math.PI)));
+				//	//console.log(' theta= '+(theta * (180/Math.PI))+ ' | phi = '+ (phi * (180/Math.PI)));
 				Game.renderer.render(Game.scene, Game.camera);
 
 			}
@@ -588,7 +643,7 @@
 			// init 3D stuff
 
 			function makeSkybox(urls, size) {
-				// console.log(urls + ' | '+ size);
+				// //console.log(urls + ' | '+ size);
 				var skyboxCubemap = THREE.ImageUtils.loadTextureCube(urls);
 
 				skyboxCubemap.format = THREE.RGBFormat;
@@ -647,7 +702,30 @@
 					color : 0x111111
 				});
 			}
+			
+			
+			function recoile(_obj, _delta, _max){
+				if(_obj.startPos == undefined){
+					_obj.startPos = _obj.position.clone();
+					_obj.recoilAccel = 8;
+				}
+				
+				var force = 4
+				
+				_obj.position.z += _obj.recoilAccel
+			
+				_obj.recoilAccel -= force;
 
+				if(_obj.recoilAccel <= 0){
+					_obj.recoilAccel =  -10;
+					if(_obj.position.z <= _obj.startPos.z){
+						_obj.position.z = _obj.startPos.z;
+						_obj.startPos = undefined;
+						return false;
+					}
+				}
+				return true;
+			}
 
 			//window.addEventListener('resize', onWindowResize);
 			if (window.addEventListener)

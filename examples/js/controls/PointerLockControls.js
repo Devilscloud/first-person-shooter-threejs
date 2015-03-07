@@ -145,7 +145,7 @@ THREE.PointerLockControls = function ( camera ) {
 
 	}();
 
-	this.update = function () {
+	this.update 		= function () {
 
 		if ( scope.enabled === false ) return;
 
@@ -157,11 +157,11 @@ THREE.PointerLockControls = function ( camera ) {
 
 		velocity.y -= 9.8 * 100.0 * delta; // 100.0 = mass
 
-		if ( moveForward ) velocity.z -= 400.0 * delta;
-		if ( moveBackward ) velocity.z += 400.0 * delta;
+		if ( moveForward ) velocity.z -= 2400.0 * delta;
+		if ( moveBackward ) velocity.z += 2400.0 * delta;
 
-		if ( moveLeft ) velocity.x -= 400.0 * delta;
-		if ( moveRight ) velocity.x += 400.0 * delta;
+		if ( moveLeft ) velocity.x -= 2400.0 * delta;
+		if ( moveRight ) velocity.x += 2400.0 * delta;
 
 		if ( isOnObject === true ) {
 
@@ -185,5 +185,9 @@ THREE.PointerLockControls = function ( camera ) {
 		prevTime = time;
 
 	};
+	
+	this.getRotation = function(){
+		return new THREE.Vector3(pitchObject.rotation.x, yawObject.rotation.y, 0);
+	}
 
 };
